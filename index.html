@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>家事挑戰賽</title>
+    <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
+    <style>
+        body { background-color: #2D3436; font-family: 'Press Start 2P', cursive, "Microsoft JhengHei"; color: white; margin: 0; padding: 15px; user-select: none; }
+        .container { max-width: 500px; margin: auto; }
+        h1 { text-align: center; color: #FAB1A0; font-size: 16px; margin-bottom: 20px; text-shadow: 2px 2px #000; }
+        
+        /* 積分看板 */
+        .scoreboard { background: #353b48; border: 4px solid #DFE6E9; padding: 15px; display: flex; justify-content: space-around; margin-bottom: 20px; box-shadow: 6px 6px 0px #000; }
+        .score-box { text-align: center; flex: 1; }
+        .score-box p { font-size: 10px; margin: 0 0 10px 0; color: #ADEDD5; height: 12px; }
+        .score-val { font-size: 24px; color: #FFEAA7; text-shadow: 2px 2px #000; }
+        .crown { color: #f9d423; font-size: 10px; margin-left: 2px; }
+
+        /* 家事清單 */
+        .task-list { display: grid; grid-template-columns: 1fr; gap: 12px; }
+        .task-item { background: #0984E3; border: 4px solid #74B9FF; padding: 12px; display: flex; justify-content: space-between; align-items: center; box-shadow: 4px 4px 0px #000; }
+        .task-info { display: flex; flex-direction: column; }
+        .task-name { font-size: 14px; margin-bottom: 5px; letter-spacing: 1px; }
+        .task-points { font-size: 9px; color: #FFEAA7; font-weight: bold; }
+        
+        .btn-group { display: flex; gap: 8px; }
+        .btn-add { 
+            background: #55EFC4; border: none; color: #2D3436; padding: 12px 8px; 
+            font-family: 'Press Start 2P'; cursor: pointer; font-size: 9px; 
+            box-shadow: 2px 2px 0px #000; border-radius: 4px;
+        }
+        .btn-add:active { transform: translate(2px, 2px); box-shadow: none; }
+        .btn-s { background: #81ECEC; }
+
+        /* 紀錄區 */
+        .logs { 
+            margin-top: 25px; background: rgba(0,0,0,0.4); padding: 12px; 
+            border: 2px solid #636E72; height: 120px; overflow-y: auto; font-size: 9px; 
+        }
+        .log-item { border-bottom: 1px solid #444; padding: 6px 0; color: #B2BEC3; line-height: 1.4; }
+        
+        .footer-btns { margin-top: 20px; display: flex; gap: 10px; }
+        .btn-reset { 
+            background: #FF7675; border: none; color: white; padding: 12px; 
+            width: 100%; font-family: 'Press Start 2P'; font-size: 10px; 
+            box-shadow: 4px 4px 0px #000;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>🏠 YAWEN & SHUOYUAN</h1>
+
+    <div class="scoreboard">
+        <div class="score-box">
+            <p id="name-y">雅玟 <span id="crown-y"></span></p>
+            <div id="y-score" class="score-val">0</div>
+        </div>
+        <div class="score-box" style="font-size: 18px; align-self: center; color:#aaa;">VS</div>
+        <div class="score-box">
+            <p id="name-s">碩元 <span id="crown-s"></span></p>
+            <div id="s-score" class="score-val">0</div>
+        </div>
+    </div>
+
+    <div class="task-list" id="task-container"></div>
+
+    <div class="logs" id="log-container"></div>
+
+    <div class="footer-btns">
+        <button class="btn-reset" onclick="resetAll()">RESET WEEKLY</button>
+    </div>
+</div>
+
+<script>
+    const tasks = [
+        { name: "打掃浴室", pts: 50, icon: "🚿" },
+        { name: "打掃廚房", pts: 40, icon: "🍳" },
+        { name: "拖地", pts: 20, icon: "🪣" },
+        { name: "洗衣服", pts: 15, icon: "🧺" },
+        { name: "洗碗", pts: 10, icon: "🥣" },
+        { name: "掃地", pts: 10, icon: "🧹" },
+        { name: "倒垃圾", pts: 5, icon: "🗑️" },
+        { name: "擦桌子", pts: 5, icon: "🧽" }
+    ];
+
+    let db = JSON.parse(localStorage.getItem('HOME_BATTLE_V1')) || { y: 0, s: 0, logs: [] };
+
+    function init() {
+        const container = document.getElementById('task-container');
+        tasks.forEach(task => {
+            container.innerHTML += `
+                <div class="task-item">
+                    <div class="task-info">
+                        <span class="task-name">${task.icon} ${task.name}</span>
+                        <span class="task-points">+${task.pts} PTS</span>
+                    </div>
+                    <div class="btn-group">
+                        <button class="btn-add" onclick="addScore('y', '${task.name}', ${task.pts})">雅玟</button>
+                        <button class="btn-add btn-s" onclick="addScore('s', '${task.name}', ${task.pts})">碩元</button>
+                    </div>
+                </div>
+            `;
+        });
+        if(db.logs.length === 0) db.logs.push("Battle Start! 做家事拿積分！");
+        updateDisplay();
+    }
+
+    function addScore(user, taskName, pts) {
+        db[user] += pts;
+        const name = user === 'y' ? '雅玟' : '碩元';
+        const now = new Date();
+        const time = now.getHours().toString().padStart(2, '0') + ":" + now.getMinutes().toString().padStart(2, '0');
+        db.logs.unshift(`[${time}] ${name} 完成了 ${taskName} (+${pts})`);
+        if (db.logs.length > 30) db.logs.pop();
+        save();
+        updateDisplay();
+    }
+
+    function updateDisplay() {
+        document.getElementById('y-score').innerText = db.y;
+        document.getElementById('s-score').innerText = db.s;
+        
+        // 皇冠邏輯
+        const cy = document.getElementById('crown-y');
+        const cs = document.getElementById('crown-s');
+        cy.innerText = (db.y > db.s && db.y > 0) ? "👑" : "";
+        cs.innerText = (db.s > db.y && db.s > 0) ? "👑" : "";
+
+        const logBox = document.getElementById('log-container');
+        logBox.innerHTML = db.logs.map(l => `<div class="log-item">${l}</div>`).join('');
+    }
+
+    function save() {
+        localStorage.setItem('HOME_BATTLE_V1', JSON.stringify(db));
+    }
+
+    function resetAll() {
+        if(confirm("確定要重置本週分數嗎？")) {
+            db = { y: 0, s: 0, logs: ["新的一週開始了！加油！"] };
+            save();
+            updateDisplay();
+        }
+    }
+
+    init();
+</script>
+
+</body>
+</html>
